@@ -1,11 +1,13 @@
-﻿namespace LegacyRenewalApp.Discounts
+﻿using System.Collections.Generic;
+
+namespace LegacyRenewalApp.Discounts
 {
     public class LoyaltyPointsDiscountPolicy : IDiscountPolicy
     {
         public DiscountPolicyResult Apply(DiscountCalculationContext context)
         {
             decimal discountAmount = 0m;
-            string notes = string.Empty;
+            var notes = new List<string>();
 
             if (context.UseLoyaltyPoints && context.Customer.LoyaltyPoints > 0)
             {
@@ -14,7 +16,7 @@
                     : context.Customer.LoyaltyPoints;
 
                 discountAmount += pointsToUse;
-                notes += $"loyalty points used: {pointsToUse}; ";
+                notes.Add($"loyalty points used: {pointsToUse}");
             }
 
             return new DiscountPolicyResult

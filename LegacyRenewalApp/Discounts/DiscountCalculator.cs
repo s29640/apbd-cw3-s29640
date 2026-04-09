@@ -39,13 +39,17 @@ namespace LegacyRenewalApp.Discounts
                 baseAmount);
 
             decimal totalDiscount = 0m;
-            string notes = string.Empty;
+            var notes = new List<string>();
 
             foreach (var policy in _policies)
             {
                 var result = policy.Apply(context);
                 totalDiscount += result.DiscountAmount;
-                notes += result.Notes;
+
+                foreach (var note in result.Notes)
+                {
+                    notes.Add(note);
+                }
             }
 
             return new DiscountCalculationResult

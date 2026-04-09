@@ -1,4 +1,5 @@
 using LegacyRenewalApp.Billing;
+using LegacyRenewalApp.Common;
 using LegacyRenewalApp.Discounts;
 using LegacyRenewalApp.Fees;
 using System;
@@ -63,6 +64,7 @@ namespace LegacyRenewalApp
 
             EnsureCustomerIsActive(customer);
 
+            var notes = new InvoiceNotesBuilder();
             decimal baseAmount = CalculateBaseAmount(plan, seatCount);
 
             var discountResult = _discountCalculator.Calculate(
@@ -73,18 +75,18 @@ namespace LegacyRenewalApp
                 baseAmount);
 
             decimal discountAmount = discountResult.DiscountAmount;
-            string notes = discountResult.Notes;
+            notes.AddRange(discountResult.Notes);
 
             decimal subtotalAfterDiscount = ApplyMinimumDiscountedSubtotal(
                 baseAmount - discountAmount,
-                ref notes);
+                notes);
 
             var supportFeeResult = _supportFeeCalculator.Calculate(
                 includePremiumSupport,
                 normalizedPlanCode);
 
             decimal supportFee = supportFeeResult.SupportFee;
-            notes += supportFeeResult.Notes;
+            notes.AddRange(supportFeeResult.Notes);
 
             var paymentFeeResult = _paymentFeeCalculator.Calculate(
                 normalizedPaymentMethod,
@@ -92,14 +94,14 @@ namespace LegacyRenewalApp
                 supportFee);
 
             decimal paymentFee = paymentFeeResult.PaymentFee;
-            notes += paymentFeeResult.Notes;
+            notes.AddRange(paymentFeeResult.Notes);
 
             decimal taxRate = _taxRateProvider.GetTaxRate(customer.Country);
             decimal taxBase = subtotalAfterDiscount + supportFee + paymentFee;
             decimal taxAmount = taxBase * taxRate;
             decimal finalAmount = taxBase + taxAmount;
 
-            finalAmount = ApplyMinimumInvoiceAmount(finalAmount, ref notes);
+            finalAmount = ApplyMinimumInvoiceAmount(finalAmount, notes);
 
             var invoice = BuildInvoice(
                 customerId,
@@ -113,7 +115,7 @@ namespace LegacyRenewalApp
                 paymentFee,
                 taxAmount,
                 finalAmount,
-                notes);
+                notes.Build());
 
             SaveInvoice(invoice);
             SendInvoiceEmail(customer, normalizedPlanCode, invoice);
@@ -176,23 +178,23 @@ namespace LegacyRenewalApp
             return (plan.MonthlyPricePerSeat * seatCount * 12m) + plan.SetupFee;
         }
 
-        private static decimal ApplyMinimumDiscountedSubtotal(decimal subtotalAfterDiscount, ref string notes)
+        private static decimal ApplyMinimumDiscountedSubtotal(decimal subtotalAfterDiscount, InvoiceNotesBuilder notes)
         {
             if (subtotalAfterDiscount < 300m)
             {
                 subtotalAfterDiscount = 300m;
-                notes += "minimum discounted subtotal applied; ";
+                notes.Add("minimum discounted subtotal applied");
             }
 
             return subtotalAfterDiscount;
         }
 
-        private static decimal ApplyMinimumInvoiceAmount(decimal finalAmount, ref string notes)
+        private static decimal ApplyMinimumInvoiceAmount(decimal finalAmount, InvoiceNotesBuilder notes)
         {
             if (finalAmount < 500m)
             {
                 finalAmount = 500m;
-                notes += "minimum invoice amount applied; ";
+                notes.Add("minimum invoice amount applied");
             }
 
             return finalAmount;

@@ -1,21 +1,23 @@
-﻿namespace LegacyRenewalApp.Discounts
+﻿using System.Collections.Generic;
+
+namespace LegacyRenewalApp.Discounts
 {
     public class TenureDiscountPolicy : IDiscountPolicy
     {
         public DiscountPolicyResult Apply(DiscountCalculationContext context)
         {
             decimal discountAmount = 0m;
-            string notes = string.Empty;
+            var notes = new List<string>();
 
             if (context.Customer.YearsWithCompany >= 5)
             {
                 discountAmount += context.BaseAmount * 0.07m;
-                notes += "long-term loyalty discount; ";
+                notes.Add("long-term loyalty discount");
             }
             else if (context.Customer.YearsWithCompany >= 2)
             {
                 discountAmount += context.BaseAmount * 0.03m;
-                notes += "basic loyalty discount; ";
+                notes.Add("basic loyalty discount");
             }
 
             return new DiscountPolicyResult

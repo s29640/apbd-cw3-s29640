@@ -1,8 +1,10 @@
-﻿namespace LegacyRenewalApp.Fees
+﻿using System.Collections.Generic;
+
+namespace LegacyRenewalApp.Fees
 {
     public class SupportFeeCalculationResult
     {
         public decimal SupportFee { get; set; }
-        public string Notes { get; set; } = string.Empty;
+        public IReadOnlyCollection<string> Notes { get; set; } = new List<string>();
     }
 }

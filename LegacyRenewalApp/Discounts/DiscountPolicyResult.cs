@@ -1,8 +1,10 @@
-﻿namespace LegacyRenewalApp.Discounts
+﻿using System.Collections.Generic;
+
+namespace LegacyRenewalApp.Discounts
 {
     public class DiscountPolicyResult
     {
         public decimal DiscountAmount { get; set; }
-        public string Notes { get; set; } = string.Empty;
+        public IReadOnlyCollection<string> Notes { get; set; } = new List<string>();
     }
 }

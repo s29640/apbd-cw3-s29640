@@ -1,4 +1,6 @@
-﻿namespace LegacyRenewalApp.Fees
+﻿using System.Collections.Generic;
+
+namespace LegacyRenewalApp.Fees
 {
     public class SupportFeeCalculator : ISupportFeeCalculator
     {
@@ -7,7 +9,7 @@
             string normalizedPlanCode)
         {
             decimal supportFee = 0m;
-            string notes = string.Empty;
+            var notes = new List<string>();
 
             if (includePremiumSupport)
             {
@@ -24,7 +26,7 @@
                     supportFee = 700m;
                 }
 
-                notes += "premium support included; ";
+                notes.Add("premium support included");
             }
 
             return new SupportFeeCalculationResult

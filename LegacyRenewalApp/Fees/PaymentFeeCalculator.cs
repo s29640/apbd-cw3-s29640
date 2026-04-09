@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace LegacyRenewalApp.Fees
 {
@@ -10,28 +11,28 @@ namespace LegacyRenewalApp.Fees
             decimal supportFee)
         {
             decimal paymentFee = 0m;
-            string notes = string.Empty;
+            var notes = new List<string>();
             decimal feeBase = subtotalAfterDiscount + supportFee;
 
             if (normalizedPaymentMethod == "CARD")
             {
                 paymentFee = feeBase * 0.02m;
-                notes += "card payment fee; ";
+                notes.Add("card payment fee");
             }
             else if (normalizedPaymentMethod == "BANK_TRANSFER")
             {
                 paymentFee = feeBase * 0.01m;
-                notes += "bank transfer fee; ";
+                notes.Add("bank transfer fee");
             }
             else if (normalizedPaymentMethod == "PAYPAL")
             {
                 paymentFee = feeBase * 0.035m;
-                notes += "paypal fee; ";
+                notes.Add("paypal fee");
             }
             else if (normalizedPaymentMethod == "INVOICE")
             {
                 paymentFee = 0m;
-                notes += "invoice payment; ";
+                notes.Add("invoice payment");
             }
             else
             {
