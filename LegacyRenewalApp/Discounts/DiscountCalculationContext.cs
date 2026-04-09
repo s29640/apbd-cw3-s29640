@@ -1,4 +1,4 @@
-﻿namespace LegacyRenewalApp
+﻿namespace LegacyRenewalApp.Discounts
 {
     public class DiscountCalculationContext
     {

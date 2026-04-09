@@ -2,7 +2,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace LegacyRenewalApp
+namespace LegacyRenewalApp.Discounts
 {
     public class DiscountCalculator : IDiscountCalculator
     {

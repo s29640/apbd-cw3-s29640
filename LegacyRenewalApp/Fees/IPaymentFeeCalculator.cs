@@ -1,4 +1,4 @@
-﻿namespace LegacyRenewalApp
+﻿namespace LegacyRenewalApp.Fees
 {
     public interface IPaymentFeeCalculator
     {

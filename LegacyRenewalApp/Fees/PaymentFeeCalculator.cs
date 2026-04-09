@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace LegacyRenewalApp
+namespace LegacyRenewalApp.Fees
 {
     public class PaymentFeeCalculator : IPaymentFeeCalculator
     {

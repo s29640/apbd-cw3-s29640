@@ -1,4 +1,4 @@
-﻿namespace LegacyRenewalApp
+﻿namespace LegacyRenewalApp.Billing
 {
     public interface IBillingGateway
     {

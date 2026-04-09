@@ -1,4 +1,6 @@
-using LegacyRenewalApp;
+using LegacyRenewalApp.Billing;
+using LegacyRenewalApp.Discounts;
+using LegacyRenewalApp.Fees;
 using System;
 
 namespace LegacyRenewalApp
