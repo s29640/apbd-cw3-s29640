@@ -4,7 +4,27 @@ namespace LegacyRenewalApp
 {
     public class SubscriptionRenewalService
     {
+        private readonly ICustomerRepository _customerRepository;
+        private readonly ISubscriptionPlanRepository _planRepository;
         private readonly IBillingGateway _billingGateway = new LegacyBillingGatewayAdapter();
+
+        public SubscriptionRenewalService()
+            : this(
+                new CustomerRepository(),
+                new SubscriptionPlanRepository(),
+                new LegacyBillingGatewayAdapter())
+        {
+        }
+
+        public SubscriptionRenewalService(
+            ICustomerRepository customerRepository,
+            ISubscriptionPlanRepository planRepository,
+            IBillingGateway billingGateway)
+        {
+            _customerRepository = customerRepository ?? throw new ArgumentNullException(nameof(customerRepository));
+            _planRepository = planRepository ?? throw new ArgumentNullException(nameof(planRepository));
+            _billingGateway = billingGateway ?? throw new ArgumentNullException(nameof(billingGateway));
+        }
 
         public RenewalInvoice CreateRenewalInvoice(
             int customerId,
@@ -109,16 +129,14 @@ namespace LegacyRenewalApp
             return value.Trim().ToUpperInvariant();
         }
 
-        private static Customer GetCustomer(int customerId)
+        private Customer GetCustomer(int customerId)
         {
-            var customerRepository = new CustomerRepository();
-            return customerRepository.GetById(customerId);
+            return _customerRepository.GetById(customerId);
         }
 
-        private static SubscriptionPlan GetPlan(string normalizedPlanCode)
+        private SubscriptionPlan GetPlan(string normalizedPlanCode)
         {
-            var planRepository = new SubscriptionPlanRepository();
-            return planRepository.GetByCode(normalizedPlanCode);
+            return _planRepository.GetByCode(normalizedPlanCode);
         }
 
         private static void EnsureCustomerIsActive(Customer customer)
