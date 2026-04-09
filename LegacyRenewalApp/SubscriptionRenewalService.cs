@@ -8,13 +8,19 @@ namespace LegacyRenewalApp
         private readonly ISubscriptionPlanRepository _planRepository;
         private readonly IBillingGateway _billingGateway;
         private readonly IDiscountCalculator _discountCalculator;
+        private readonly ISupportFeeCalculator _supportFeeCalculator;
+        private readonly IPaymentFeeCalculator _paymentFeeCalculator;
+        private readonly ITaxRateProvider _taxRateProvider;
 
         public SubscriptionRenewalService()
             : this(
                 new CustomerRepository(),
                 new SubscriptionPlanRepository(),
                 new LegacyBillingGatewayAdapter(),
-                new DiscountCalculator())
+                new DiscountCalculator(),
+                new SupportFeeCalculator(),
+                new PaymentFeeCalculator(),
+                new TaxRateProvider())
         {
         }
 
@@ -22,12 +28,18 @@ namespace LegacyRenewalApp
             ICustomerRepository customerRepository,
             ISubscriptionPlanRepository planRepository,
             IBillingGateway billingGateway,
-            IDiscountCalculator discountCalculator)
+            IDiscountCalculator discountCalculator,
+            ISupportFeeCalculator supportFeeCalculator,
+            IPaymentFeeCalculator paymentFeeCalculator,
+            ITaxRateProvider taxRateProvider)
         {
             _customerRepository = customerRepository ?? throw new ArgumentNullException(nameof(customerRepository));
             _planRepository = planRepository ?? throw new ArgumentNullException(nameof(planRepository));
             _billingGateway = billingGateway ?? throw new ArgumentNullException(nameof(billingGateway));
             _discountCalculator = discountCalculator ?? throw new ArgumentNullException(nameof(discountCalculator));
+            _supportFeeCalculator = supportFeeCalculator ?? throw new ArgumentNullException(nameof(supportFeeCalculator));
+            _paymentFeeCalculator = paymentFeeCalculator ?? throw new ArgumentNullException(nameof(paymentFeeCalculator));
+            _taxRateProvider = taxRateProvider ?? throw new ArgumentNullException(nameof(taxRateProvider));
         }
 
         public RenewalInvoice CreateRenewalInvoice(
@@ -64,18 +76,22 @@ namespace LegacyRenewalApp
                 baseAmount - discountAmount,
                 ref notes);
 
-            decimal supportFee = CalculateSupportFee(
+            var supportFeeResult = _supportFeeCalculator.Calculate(
                 includePremiumSupport,
-                normalizedPlanCode,
-                ref notes);
+                normalizedPlanCode);
 
-            decimal paymentFee = CalculatePaymentFee(
+            decimal supportFee = supportFeeResult.SupportFee;
+            notes += supportFeeResult.Notes;
+
+            var paymentFeeResult = _paymentFeeCalculator.Calculate(
                 normalizedPaymentMethod,
                 subtotalAfterDiscount,
-                supportFee,
-                ref notes);
+                supportFee);
 
-            decimal taxRate = GetTaxRate(customer.Country);
+            decimal paymentFee = paymentFeeResult.PaymentFee;
+            notes += paymentFeeResult.Notes;
+
+            decimal taxRate = _taxRateProvider.GetTaxRate(customer.Country);
             decimal taxBase = subtotalAfterDiscount + supportFee + paymentFee;
             decimal taxAmount = taxBase * taxRate;
             decimal finalAmount = taxBase + taxAmount;
@@ -166,95 +182,6 @@ namespace LegacyRenewalApp
             }
 
             return subtotalAfterDiscount;
-        }
-
-        private static decimal CalculateSupportFee(
-            bool includePremiumSupport,
-            string normalizedPlanCode,
-            ref string notes)
-        {
-            decimal supportFee = 0m;
-
-            if (includePremiumSupport)
-            {
-                if (normalizedPlanCode == "START")
-                {
-                    supportFee = 250m;
-                }
-                else if (normalizedPlanCode == "PRO")
-                {
-                    supportFee = 400m;
-                }
-                else if (normalizedPlanCode == "ENTERPRISE")
-                {
-                    supportFee = 700m;
-                }
-
-                notes += "premium support included; ";
-            }
-
-            return supportFee;
-        }
-
-        private static decimal CalculatePaymentFee(
-            string normalizedPaymentMethod,
-            decimal subtotalAfterDiscount,
-            decimal supportFee,
-            ref string notes)
-        {
-            decimal paymentFee = 0m;
-            decimal feeBase = subtotalAfterDiscount + supportFee;
-
-            if (normalizedPaymentMethod == "CARD")
-            {
-                paymentFee = feeBase * 0.02m;
-                notes += "card payment fee; ";
-            }
-            else if (normalizedPaymentMethod == "BANK_TRANSFER")
-            {
-                paymentFee = feeBase * 0.01m;
-                notes += "bank transfer fee; ";
-            }
-            else if (normalizedPaymentMethod == "PAYPAL")
-            {
-                paymentFee = feeBase * 0.035m;
-                notes += "paypal fee; ";
-            }
-            else if (normalizedPaymentMethod == "INVOICE")
-            {
-                paymentFee = 0m;
-                notes += "invoice payment; ";
-            }
-            else
-            {
-                throw new ArgumentException("Unsupported payment method");
-            }
-
-            return paymentFee;
-        }
-
-        private static decimal GetTaxRate(string country)
-        {
-            decimal taxRate = 0.20m;
-
-            if (country == "Poland")
-            {
-                taxRate = 0.23m;
-            }
-            else if (country == "Germany")
-            {
-                taxRate = 0.19m;
-            }
-            else if (country == "Czech Republic")
-            {
-                taxRate = 0.21m;
-            }
-            else if (country == "Norway")
-            {
-                taxRate = 0.25m;
-            }
-
-            return taxRate;
         }
 
         private static decimal ApplyMinimumInvoiceAmount(decimal finalAmount, ref string notes)
