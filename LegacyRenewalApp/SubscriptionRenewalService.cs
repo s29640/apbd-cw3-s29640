@@ -12,39 +12,15 @@ namespace LegacyRenewalApp
             bool includePremiumSupport,
             bool useLoyaltyPoints)
         {
-            if (customerId <= 0)
-            {
-                throw new ArgumentException("Customer id must be positive");
-            }
+            ValidateInput(customerId, planCode, seatCount, paymentMethod);
 
-            if (string.IsNullOrWhiteSpace(planCode))
-            {
-                throw new ArgumentException("Plan code is required");
-            }
+            string normalizedPlanCode = Normalize(planCode);
+            string normalizedPaymentMethod = Normalize(paymentMethod);
 
-            if (seatCount <= 0)
-            {
-                throw new ArgumentException("Seat count must be positive");
-            }
+            var customer = GetCustomer(customerId);
+            var plan = GetPlan(normalizedPlanCode);
 
-            if (string.IsNullOrWhiteSpace(paymentMethod))
-            {
-                throw new ArgumentException("Payment method is required");
-            }
-
-            string normalizedPlanCode = planCode.Trim().ToUpperInvariant();
-            string normalizedPaymentMethod = paymentMethod.Trim().ToUpperInvariant();
-
-            var customerRepository = new CustomerRepository();
-            var planRepository = new SubscriptionPlanRepository();
-
-            var customer = customerRepository.GetById(customerId);
-            var plan = planRepository.GetByCode(normalizedPlanCode);
-
-            if (!customer.IsActive)
-            {
-                throw new InvalidOperationException("Inactive customers cannot renew subscriptions");
-            }
+            EnsureCustomerIsActive(customer);
 
             decimal baseAmount = (plan.MonthlyPricePerSeat * seatCount * 12m) + plan.SetupFee;
             decimal discountAmount = 0m;
@@ -215,6 +191,58 @@ namespace LegacyRenewalApp
             }
 
             return invoice;
+        }
+
+        private static void ValidateInput(
+            int customerId,
+            string planCode,
+            int seatCount,
+            string paymentMethod)
+        {
+            if (customerId <= 0)
+            {
+                throw new ArgumentException("Customer id must be positive");
+            }
+
+            if (string.IsNullOrWhiteSpace(planCode))
+            {
+                throw new ArgumentException("Plan code is required");
+            }
+
+            if (seatCount <= 0)
+            {
+                throw new ArgumentException("Seat count must be positive");
+            }
+
+            if (string.IsNullOrWhiteSpace(paymentMethod))
+            {
+                throw new ArgumentException("Payment method is required");
+            }
+        }
+
+        private static string Normalize(string value)
+        {
+            return value.Trim().ToUpperInvariant();
+        }
+
+        private static Customer GetCustomer(int customerId)
+        {
+            var customerRepository = new CustomerRepository();
+            return customerRepository.GetById(customerId);
+        }
+
+        private static SubscriptionPlan GetPlan(string normalizedPlanCode)
+        {
+            var planRepository = new SubscriptionPlanRepository();
+            return planRepository.GetByCode(normalizedPlanCode);
+        }
+
+        private static void EnsureCustomerIsActive(Customer customer)
+        {
+            if (!customer.IsActive)
+            {
+                throw new InvalidOperationException("Inactive customers cannot renew subscriptions");
+            }
         }
     }
 }
