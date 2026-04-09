@@ -53,40 +53,24 @@ namespace LegacyRenewalApp
             decimal taxAmount = taxBase * taxRate;
             decimal finalAmount = taxBase + taxAmount;
 
-            if (finalAmount < 500m)
-            {
-                finalAmount = 500m;
-                notes += "minimum invoice amount applied; ";
-            }
+            finalAmount = ApplyMinimumInvoiceAmount(finalAmount, ref notes);
 
-            var invoice = new RenewalInvoice
-            {
-                InvoiceNumber = $"INV-{DateTime.UtcNow:yyyyMMdd}-{customerId}-{normalizedPlanCode}",
-                CustomerName = customer.FullName,
-                PlanCode = normalizedPlanCode,
-                PaymentMethod = normalizedPaymentMethod,
-                SeatCount = seatCount,
-                BaseAmount = Math.Round(baseAmount, 2, MidpointRounding.AwayFromZero),
-                DiscountAmount = Math.Round(discountAmount, 2, MidpointRounding.AwayFromZero),
-                SupportFee = Math.Round(supportFee, 2, MidpointRounding.AwayFromZero),
-                PaymentFee = Math.Round(paymentFee, 2, MidpointRounding.AwayFromZero),
-                TaxAmount = Math.Round(taxAmount, 2, MidpointRounding.AwayFromZero),
-                FinalAmount = Math.Round(finalAmount, 2, MidpointRounding.AwayFromZero),
-                Notes = notes.Trim(),
-                GeneratedAt = DateTime.UtcNow
-            };
+            var invoice = BuildInvoice(
+                customerId,
+                seatCount,
+                normalizedPlanCode,
+                normalizedPaymentMethod,
+                customer,
+                baseAmount,
+                discountAmount,
+                supportFee,
+                paymentFee,
+                taxAmount,
+                finalAmount,
+                notes);
 
-            LegacyBillingGateway.SaveInvoice(invoice);
-
-            if (!string.IsNullOrWhiteSpace(customer.Email))
-            {
-                string subject = "Subscription renewal invoice";
-                string body =
-                    $"Hello {customer.FullName}, your renewal for plan {normalizedPlanCode} " +
-                    $"has been prepared. Final amount: {invoice.FinalAmount:F2}.";
-
-                LegacyBillingGateway.SendEmail(customer.Email, subject, body);
-            }
+            SaveInvoice(invoice);
+            SendInvoiceEmail(customer, normalizedPlanCode, invoice);
 
             return invoice;
         }
@@ -314,6 +298,74 @@ namespace LegacyRenewalApp
             }
 
             return taxRate;
+        }
+
+        private static decimal ApplyMinimumInvoiceAmount(decimal finalAmount, ref string notes)
+        {
+            if (finalAmount < 500m)
+            {
+                finalAmount = 500m;
+                notes += "minimum invoice amount applied; ";
+            }
+
+            return finalAmount;
+        }
+
+        private static RenewalInvoice BuildInvoice(
+            int customerId,
+            int seatCount,
+            string normalizedPlanCode,
+            string normalizedPaymentMethod,
+            Customer customer,
+            decimal baseAmount,
+            decimal discountAmount,
+            decimal supportFee,
+            decimal paymentFee,
+            decimal taxAmount,
+            decimal finalAmount,
+            string notes)
+        {
+            var generatedAt = DateTime.UtcNow;
+
+            return new RenewalInvoice
+            {
+                InvoiceNumber = $"INV-{generatedAt:yyyyMMdd}-{customerId}-{normalizedPlanCode}",
+                CustomerName = customer.FullName,
+                PlanCode = normalizedPlanCode,
+                PaymentMethod = normalizedPaymentMethod,
+                SeatCount = seatCount,
+                BaseAmount = Math.Round(baseAmount, 2, MidpointRounding.AwayFromZero),
+                DiscountAmount = Math.Round(discountAmount, 2, MidpointRounding.AwayFromZero),
+                SupportFee = Math.Round(supportFee, 2, MidpointRounding.AwayFromZero),
+                PaymentFee = Math.Round(paymentFee, 2, MidpointRounding.AwayFromZero),
+                TaxAmount = Math.Round(taxAmount, 2, MidpointRounding.AwayFromZero),
+                FinalAmount = Math.Round(finalAmount, 2, MidpointRounding.AwayFromZero),
+                Notes = notes.Trim(),
+                GeneratedAt = generatedAt
+            };
+        }
+
+        private static void SaveInvoice(RenewalInvoice invoice)
+        {
+            LegacyBillingGateway.SaveInvoice(invoice);
+        }
+
+        private static void SendInvoiceEmail(
+            Customer customer,
+            string normalizedPlanCode,
+            RenewalInvoice invoice)
+        {
+            if (string.IsNullOrWhiteSpace(customer.Email))
+            {
+                return;
+            }
+
+            string subject = "Subscription renewal invoice";
+            string body =
+                $"Hello {customer.FullName}, your renewal for plan {normalizedPlanCode} " +
+                $"has been prepared. Final amount: {invoice.FinalAmount:F2}.";
+
+            LegacyBillingGateway.SendEmail(customer.Email, subject, body);
         }
     }
 }
