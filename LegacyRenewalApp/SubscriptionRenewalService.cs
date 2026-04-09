@@ -6,24 +6,28 @@ namespace LegacyRenewalApp
     {
         private readonly ICustomerRepository _customerRepository;
         private readonly ISubscriptionPlanRepository _planRepository;
-        private readonly IBillingGateway _billingGateway = new LegacyBillingGatewayAdapter();
+        private readonly IBillingGateway _billingGateway;
+        private readonly IDiscountCalculator _discountCalculator;
 
         public SubscriptionRenewalService()
             : this(
                 new CustomerRepository(),
                 new SubscriptionPlanRepository(),
-                new LegacyBillingGatewayAdapter())
+                new LegacyBillingGatewayAdapter(),
+                new DiscountCalculator())
         {
         }
 
         public SubscriptionRenewalService(
             ICustomerRepository customerRepository,
             ISubscriptionPlanRepository planRepository,
-            IBillingGateway billingGateway)
+            IBillingGateway billingGateway,
+            IDiscountCalculator discountCalculator)
         {
             _customerRepository = customerRepository ?? throw new ArgumentNullException(nameof(customerRepository));
             _planRepository = planRepository ?? throw new ArgumentNullException(nameof(planRepository));
             _billingGateway = billingGateway ?? throw new ArgumentNullException(nameof(billingGateway));
+            _discountCalculator = discountCalculator ?? throw new ArgumentNullException(nameof(discountCalculator));
         }
 
         public RenewalInvoice CreateRenewalInvoice(
@@ -46,14 +50,15 @@ namespace LegacyRenewalApp
 
             decimal baseAmount = CalculateBaseAmount(plan, seatCount);
 
-            string notes = string.Empty;
-            decimal discountAmount = CalculateDiscountAmount(
+            var discountResult = _discountCalculator.Calculate(
                 customer,
                 plan,
                 seatCount,
                 useLoyaltyPoints,
-                baseAmount,
-                ref notes);
+                baseAmount);
+
+            decimal discountAmount = discountResult.DiscountAmount;
+            string notes = discountResult.Notes;
 
             decimal subtotalAfterDiscount = ApplyMinimumDiscountedSubtotal(
                 baseAmount - discountAmount,
@@ -150,74 +155,6 @@ namespace LegacyRenewalApp
         private static decimal CalculateBaseAmount(SubscriptionPlan plan, int seatCount)
         {
             return (plan.MonthlyPricePerSeat * seatCount * 12m) + plan.SetupFee;
-        }
-
-        private static decimal CalculateDiscountAmount(
-            Customer customer,
-            SubscriptionPlan plan,
-            int seatCount,
-            bool useLoyaltyPoints,
-            decimal baseAmount,
-            ref string notes)
-        {
-            decimal discountAmount = 0m;
-
-            if (customer.Segment == "Silver")
-            {
-                discountAmount += baseAmount * 0.05m;
-                notes += "silver discount; ";
-            }
-            else if (customer.Segment == "Gold")
-            {
-                discountAmount += baseAmount * 0.10m;
-                notes += "gold discount; ";
-            }
-            else if (customer.Segment == "Platinum")
-            {
-                discountAmount += baseAmount * 0.15m;
-                notes += "platinum discount; ";
-            }
-            else if (customer.Segment == "Education" && plan.IsEducationEligible)
-            {
-                discountAmount += baseAmount * 0.20m;
-                notes += "education discount; ";
-            }
-
-            if (customer.YearsWithCompany >= 5)
-            {
-                discountAmount += baseAmount * 0.07m;
-                notes += "long-term loyalty discount; ";
-            }
-            else if (customer.YearsWithCompany >= 2)
-            {
-                discountAmount += baseAmount * 0.03m;
-                notes += "basic loyalty discount; ";
-            }
-
-            if (seatCount >= 50)
-            {
-                discountAmount += baseAmount * 0.12m;
-                notes += "large team discount; ";
-            }
-            else if (seatCount >= 20)
-            {
-                discountAmount += baseAmount * 0.08m;
-                notes += "medium team discount; ";
-            }
-            else if (seatCount >= 10)
-            {
-                discountAmount += baseAmount * 0.04m;
-                notes += "small team discount; ";
-            }
-
-            if (useLoyaltyPoints && customer.LoyaltyPoints > 0)
-            {
-                int pointsToUse = customer.LoyaltyPoints > 200 ? 200 : customer.LoyaltyPoints;
-                discountAmount += pointsToUse;
-                notes += $"loyalty points used: {pointsToUse}; ";
-            }
-
-            return discountAmount;
         }
 
         private static decimal ApplyMinimumDiscountedSubtotal(decimal subtotalAfterDiscount, ref string notes)
