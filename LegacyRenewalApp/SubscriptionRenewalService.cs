@@ -4,6 +4,8 @@ namespace LegacyRenewalApp
 {
     public class SubscriptionRenewalService
     {
+        private readonly IBillingGateway _billingGateway = new LegacyBillingGatewayAdapter();
+
         public RenewalInvoice CreateRenewalInvoice(
             int customerId,
             string planCode,
@@ -345,12 +347,12 @@ namespace LegacyRenewalApp
             };
         }
 
-        private static void SaveInvoice(RenewalInvoice invoice)
+        private void SaveInvoice(RenewalInvoice invoice)
         {
-            LegacyBillingGateway.SaveInvoice(invoice);
+            _billingGateway.SaveInvoice(invoice);
         }
 
-        private static void SendInvoiceEmail(
+        private void SendInvoiceEmail(
             Customer customer,
             string normalizedPlanCode,
             RenewalInvoice invoice)
@@ -365,7 +367,7 @@ namespace LegacyRenewalApp
                 $"Hello {customer.FullName}, your renewal for plan {normalizedPlanCode} " +
                 $"has been prepared. Final amount: {invoice.FinalAmount:F2}.";
 
-            LegacyBillingGateway.SendEmail(customer.Email, subject, body);
+            _billingGateway.SendEmail(customer.Email, subject, body);
         }
     }
 }
